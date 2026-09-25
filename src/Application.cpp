@@ -186,6 +186,7 @@ void Application::drawFrame()
             &inFlightFence,
             VK_TRUE,
             UINT64_MAX) != VK_SUCCESS) {
+
         throw std::runtime_error(
             "failed waiting for in-flight fence"
         );
@@ -209,22 +210,26 @@ void Application::drawFrame()
 
     if (result != VK_SUCCESS &&
         result != VK_SUBOPTIMAL_KHR) {
+
         throw std::runtime_error(
             "failed to acquire swapchain image"
         );
     }
 
-    if (vulkan.inFlightFences[imageIndex] != VK_NULL_HANDLE) {
+    // If this swapchain image is already being rendered,
+    // wait for the fence associated with that previous frame.
+    if (vulkan.imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
         vkWaitForFences(
             vulkan.device,
             1,
-            &vulkan.inFlightFences[imageIndex],
+            &vulkan.imagesInFlight[imageIndex],
             VK_TRUE,
             UINT64_MAX
         );
     }
 
-    vulkan.inFlightFences[imageIndex] =
+    // Associate this swapchain image with our current frame.
+    vulkan.imagesInFlight[imageIndex] =
         inFlightFence;
 
     vkResetFences(
@@ -242,12 +247,14 @@ void Application::drawFrame()
     );
 
     VkCommandBufferBeginInfo beginInfo{};
+
     beginInfo.sType =
         VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
     if (vkBeginCommandBuffer(
             commandBuffer,
             &beginInfo) != VK_SUCCESS) {
+
         throw std::runtime_error(
             "failed to begin command buffer"
         );
@@ -284,7 +291,8 @@ void Application::drawFrame()
     };
 
     renderPassInfo.clearValueCount = 2;
-    renderPassInfo.pClearValues = clearValues;
+    renderPassInfo.pClearValues =
+        clearValues;
 
     vkCmdBeginRenderPass(
         commandBuffer,
@@ -292,12 +300,8 @@ void Application::drawFrame()
         VK_SUBPASS_CONTENTS_INLINE
     );
 
-    // The UI object is currently created below in mainLoop only
-    // after this function has been expanded. For this initial
-    // renderer pass, Pipeline is responsible for the actual scene.
-    //
-    // No model is loaded yet, so there is intentionally no geometry
-    // draw here.
+    // No geometry yet.
+    // The render pass currently just clears the framebuffer.
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -325,6 +329,7 @@ void Application::drawFrame()
         VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
     submitInfo.waitSemaphoreCount = 1;
+
     submitInfo.pWaitSemaphores =
         waitSemaphores;
 
@@ -332,10 +337,12 @@ void Application::drawFrame()
         waitStages;
 
     submitInfo.commandBufferCount = 1;
+
     submitInfo.pCommandBuffers =
         &commandBuffer;
 
     submitInfo.signalSemaphoreCount = 1;
+
     submitInfo.pSignalSemaphores =
         signalSemaphores;
 
@@ -344,6 +351,7 @@ void Application::drawFrame()
             1,
             &submitInfo,
             inFlightFence) != VK_SUCCESS) {
+
         throw std::runtime_error(
             "failed to submit draw command buffer"
         );
@@ -359,10 +367,12 @@ void Application::drawFrame()
         VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
     presentInfo.waitSemaphoreCount = 1;
+
     presentInfo.pWaitSemaphores =
         signalSemaphores;
 
     presentInfo.swapchainCount = 1;
+
     presentInfo.pSwapchains =
         swapchains;
 
@@ -382,6 +392,7 @@ void Application::drawFrame()
         vulkan.recreateSwapchain();
     }
     else if (result != VK_SUCCESS) {
+
         throw std::runtime_error(
             "failed to present swapchain image"
         );
