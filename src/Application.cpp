@@ -1,10 +1,14 @@
 #include "Application.h"
+#include "Buffer.h"
 
 #include <imgui.h>
+
+#include <glm/glm.hpp>
 
 #include <chrono>
 #include <iostream>
 #include <stdexcept>
+#include <vector>
 
 namespace {
 
@@ -18,16 +22,169 @@ float currentTimeSeconds()
     return std::chrono::duration<float>(now - start).count();
 }
 
+MeshData createTestCube()
+{
+    MeshData mesh;
+
+    /*
+     * A cube has 24 vertices rather than 8 because each face
+     * needs its own normal and UV coordinates.
+     */
+
+    const glm::vec3 positions[] = {
+        // Front
+        {-1.0f, -1.0f,  1.0f},
+        { 1.0f, -1.0f,  1.0f},
+        { 1.0f,  1.0f,  1.0f},
+        {-1.0f,  1.0f,  1.0f},
+
+        // Back
+        { 1.0f, -1.0f, -1.0f},
+        {-1.0f, -1.0f, -1.0f},
+        {-1.0f,  1.0f, -1.0f},
+        { 1.0f,  1.0f, -1.0f},
+
+        // Left
+        {-1.0f, -1.0f, -1.0f},
+        {-1.0f, -1.0f,  1.0f},
+        {-1.0f,  1.0f,  1.0f},
+        {-1.0f,  1.0f, -1.0f},
+
+        // Right
+        { 1.0f, -1.0f,  1.0f},
+        { 1.0f, -1.0f, -1.0f},
+        { 1.0f,  1.0f, -1.0f},
+        { 1.0f,  1.0f,  1.0f},
+
+        // Top
+        {-1.0f,  1.0f,  1.0f},
+        { 1.0f,  1.0f,  1.0f},
+        { 1.0f,  1.0f, -1.0f},
+        {-1.0f,  1.0f, -1.0f},
+
+        // Bottom
+        {-1.0f, -1.0f, -1.0f},
+        { 1.0f, -1.0f, -1.0f},
+        { 1.0f, -1.0f,  1.0f},
+        {-1.0f, -1.0f,  1.0f}
+    };
+
+    const glm::vec3 normals[] = {
+        // Front
+        { 0.0f,  0.0f,  1.0f},
+        { 0.0f,  0.0f,  1.0f},
+        { 0.0f,  0.0f,  1.0f},
+        { 0.0f,  0.0f,  1.0f},
+
+        // Back
+        { 0.0f,  0.0f, -1.0f},
+        { 0.0f,  0.0f, -1.0f},
+        { 0.0f,  0.0f, -1.0f},
+        { 0.0f,  0.0f, -1.0f},
+
+        // Left
+        {-1.0f,  0.0f,  0.0f},
+        {-1.0f,  0.0f,  0.0f},
+        {-1.0f,  0.0f,  0.0f},
+        {-1.0f,  0.0f,  0.0f},
+
+        // Right
+        { 1.0f,  0.0f,  0.0f},
+        { 1.0f,  0.0f,  0.0f},
+        { 1.0f,  0.0f,  0.0f},
+        { 1.0f,  0.0f,  0.0f},
+
+        // Top
+        { 0.0f,  1.0f,  0.0f},
+        { 0.0f,  1.0f,  0.0f},
+        { 0.0f,  1.0f,  0.0f},
+        { 0.0f,  1.0f,  0.0f},
+
+        // Bottom
+        { 0.0f, -1.0f,  0.0f},
+        { 0.0f, -1.0f,  0.0f},
+        { 0.0f, -1.0f,  0.0f},
+        { 0.0f, -1.0f,  0.0f}
+    };
+
+    const glm::vec2 uvs[] = {
+        {0.0f, 0.0f},
+        {1.0f, 0.0f},
+        {1.0f, 1.0f},
+        {0.0f, 1.0f},
+
+        {0.0f, 0.0f},
+        {1.0f, 0.0f},
+        {1.0f, 1.0f},
+        {0.0f, 1.0f},
+
+        {0.0f, 0.0f},
+        {1.0f, 0.0f},
+        {1.0f, 1.0f},
+        {0.0f, 1.0f},
+
+        {0.0f, 0.0f},
+        {1.0f, 0.0f},
+        {1.0f, 1.0f},
+        {0.0f, 1.0f},
+
+        {0.0f, 0.0f},
+        {1.0f, 0.0f},
+        {1.0f, 1.0f},
+        {0.0f, 1.0f},
+
+        {0.0f, 0.0f},
+        {1.0f, 0.0f},
+        {1.0f, 1.0f},
+        {0.0f, 1.0f}
+    };
+
+    for (size_t i = 0; i < 24; ++i) {
+        mesh.vertices.push_back({
+            positions[i],
+            normals[i],
+            uvs[i]
+        });
+    }
+
+    const uint32_t indices[] = {
+         0,  1,  2,   2,  3,  0, // Front
+         4,  5,  6,   6,  7,  4, // Back
+         8,  9, 10,  10, 11,  8, // Left
+        12, 13, 14,  14, 15, 12, // Right
+        16, 17, 18,  18, 19, 16, // Top
+        20, 21, 22,  22, 23, 20  // Bottom
+    };
+
+    mesh.indices.assign(
+        std::begin(indices),
+        std::end(indices)
+    );
+
+    mesh.materialIndex = 0;
+
+    return mesh;
+}
+
 }
 
 void Application::initWindow()
 {
     if (!glfwInit()) {
-        throw std::runtime_error("failed to initialize GLFW");
+        throw std::runtime_error(
+            "failed to initialize GLFW"
+        );
     }
 
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+    glfwWindowHint(
+        GLFW_CLIENT_API,
+        GLFW_NO_API
+    );
+
+    glfwWindowHint(
+        GLFW_RESIZABLE,
+        GLFW_TRUE
+    );
 
     window = glfwCreateWindow(
         1280,
@@ -39,7 +196,10 @@ void Application::initWindow()
 
     if (!window) {
         glfwTerminate();
-        throw std::runtime_error("failed to create GLFW window");
+
+        throw std::runtime_error(
+            "failed to create GLFW window"
+        );
     }
 
     glfwSetWindowUserPointer(window, this);
@@ -67,6 +227,31 @@ void Application::initVulkan()
     pipeline.init(vulkan);
 
     ui.init(window, vulkan);
+
+    initTestCube();
+}
+
+void Application::initTestCube()
+{
+    MeshData cube = createTestCube();
+
+    cubeMesh = uploadMesh(
+        vulkan,
+        cube
+    );
+
+    cubeTexture.createSolidColor(
+        vulkan,
+        220,
+        220,
+        220
+    );
+
+    pipeline.createTextureDescriptor(
+        vulkan,
+        cubeTexture,
+        cubeTextureDescriptorSet
+    );
 }
 
 void Application::processInput(float deltaTime)
@@ -74,14 +259,8 @@ void Application::processInput(float deltaTime)
     if (!window)
         return;
 
-    // Camera keyboard controls.
-    //
-    // W / S = forward / backward
-    // A / D = left / right
-    // Space = up
-    // Ctrl  = down
-
     if (!ui.wantsKeyboard()) {
+
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
             camera.processKeyboard(
                 CameraMove::Forward,
@@ -122,14 +301,19 @@ void Application::processInput(float deltaTime)
 
 void Application::mainLoop()
 {
-    float previousTime = currentTimeSeconds();
+    float previousTime =
+        currentTimeSeconds();
 
     while (!glfwWindowShouldClose(window)) {
+
         glfwPollEvents();
 
-        const float now = currentTimeSeconds();
+        const float now =
+            currentTimeSeconds();
 
-        float deltaTime = now - previousTime;
+        float deltaTime =
+            now - previousTime;
+
         previousTime = now;
 
         if (deltaTime > 0.1f)
@@ -137,18 +321,34 @@ void Application::mainLoop()
 
         ui.newFrame();
 
-        // Temporary ImGui test window.
-        ImGui::Begin("Vulkan Model Viewer");
+        ImGui::Begin(
+            "Vulkan Model Viewer"
+        );
 
-        ImGui::Text("Vulkan renderer running.");
         ImGui::Text(
-            "GPU: %s",
-            "Intel Vulkan device"
+            "Vulkan renderer running."
         );
 
         ImGui::Separator();
 
-        ImGui::Text("Camera");
+        ImGui::Text(
+            "Test Cube"
+        );
+
+        ImGui::Text(
+            "Vertices: 24"
+        );
+
+        ImGui::Text(
+            "Indices: 36"
+        );
+
+        ImGui::Separator();
+
+        ImGui::Text(
+            "Camera"
+        );
+
         ImGui::Text(
             "Position: %.2f, %.2f, %.2f",
             camera.position.x,
@@ -165,10 +365,13 @@ void Application::mainLoop()
         ImGui::End();
 
         processInput(deltaTime);
+
         drawFrame();
     }
 
-    vkDeviceWaitIdle(vulkan.device);
+    vkDeviceWaitIdle(
+        vulkan.device
+    );
 }
 
 void Application::drawFrame()
@@ -181,7 +384,8 @@ void Application::drawFrame()
             1,
             &inFlightFence,
             VK_TRUE,
-            UINT64_MAX) != VK_SUCCESS) {
+            UINT64_MAX
+        ) != VK_SUCCESS) {
 
         throw std::runtime_error(
             "failed waiting for in-flight fence"
@@ -190,14 +394,17 @@ void Application::drawFrame()
 
     uint32_t imageIndex = 0;
 
-    VkResult result = vkAcquireNextImageKHR(
-        vulkan.device,
-        vulkan.swapchain,
-        UINT64_MAX,
-        vulkan.imageAvailableSemaphores[currentFrame],
-        VK_NULL_HANDLE,
-        &imageIndex
-    );
+    VkResult result =
+        vkAcquireNextImageKHR(
+            vulkan.device,
+            vulkan.swapchain,
+            UINT64_MAX,
+            vulkan.imageAvailableSemaphores[
+                currentFrame
+            ],
+            VK_NULL_HANDLE,
+            &imageIndex
+        );
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         vulkan.recreateSwapchain();
@@ -212,7 +419,9 @@ void Application::drawFrame()
         );
     }
 
-    if (vulkan.imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
+    if (vulkan.imagesInFlight[imageIndex] !=
+        VK_NULL_HANDLE) {
+
         vkWaitForFences(
             vulkan.device,
             1,
@@ -240,12 +449,14 @@ void Application::drawFrame()
     );
 
     VkCommandBufferBeginInfo beginInfo{};
+
     beginInfo.sType =
         VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
     if (vkBeginCommandBuffer(
             commandBuffer,
-            &beginInfo) != VK_SUCCESS) {
+            &beginInfo
+        ) != VK_SUCCESS) {
 
         throw std::runtime_error(
             "failed to begin command buffer"
@@ -286,7 +497,8 @@ void Application::drawFrame()
     };
 
     renderPassInfo.clearValueCount = 2;
-    renderPassInfo.pClearValues = clearValues;
+    renderPassInfo.pClearValues =
+        clearValues;
 
     vkCmdBeginRenderPass(
         commandBuffer,
@@ -295,24 +507,58 @@ void Application::drawFrame()
     );
 
     /*
-     * Geometry rendering will go here.
-     *
-     * For now the render pass only clears the
-     * framebuffer.
+     * Update the camera uniform buffer for this frame.
      */
+    pipeline.updateScene(
+        vulkan,
+        static_cast<uint32_t>(currentFrame),
+        camera
+    );
 
+    /*
+     * Draw the test cube.
+     */
+    const std::vector<GPUMesh> meshes = {
+        cubeMesh
+    };
+
+    const std::vector<VkDescriptorSet>
+        textureDescriptorSets = {
+            cubeTextureDescriptorSet
+        };
+
+    pipeline.draw(
+        vulkan,
+        commandBuffer,
+        static_cast<uint32_t>(currentFrame),
+        meshes,
+        textureDescriptorSets,
+        glm::mat4(1.0f)
+    );
+
+    /*
+     * ImGui is rendered after the 3D scene,
+     * so it appears on top of the cube.
+     */
     ui.render(commandBuffer);
 
-    vkCmdEndRenderPass(commandBuffer);
+    vkCmdEndRenderPass(
+        commandBuffer
+    );
 
-    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+    if (vkEndCommandBuffer(
+            commandBuffer
+        ) != VK_SUCCESS) {
+
         throw std::runtime_error(
             "failed to record command buffer"
         );
     }
 
     VkSemaphore waitSemaphores[] = {
-        vulkan.imageAvailableSemaphores[currentFrame]
+        vulkan.imageAvailableSemaphores[
+            currentFrame
+        ]
     };
 
     VkPipelineStageFlags waitStages[] = {
@@ -320,7 +566,9 @@ void Application::drawFrame()
     };
 
     VkSemaphore signalSemaphores[] = {
-        vulkan.renderFinishedSemaphores[currentFrame]
+        vulkan.renderFinishedSemaphores[
+            currentFrame
+        ]
     };
 
     VkSubmitInfo submitInfo{};
@@ -347,7 +595,8 @@ void Application::drawFrame()
             vulkan.graphicsQueue,
             1,
             &submitInfo,
-            inFlightFence) != VK_SUCCESS) {
+            inFlightFence
+        ) != VK_SUCCESS) {
 
         throw std::runtime_error(
             "failed to submit draw command buffer"
@@ -401,13 +650,27 @@ void Application::drawFrame()
 
 void Application::cleanup()
 {
-    if (vulkan.device != VK_NULL_HANDLE) {
+    if (vulkan.device != VK_NULL_HANDLE)
         vkDeviceWaitIdle(vulkan.device);
+
+    if (cubeMesh.vertexBuffer != VK_NULL_HANDLE ||
+        cubeMesh.indexBuffer != VK_NULL_HANDLE) {
+
+        destroyGPUMesh(
+            vulkan.device,
+            cubeMesh
+        );
     }
+
+    cubeTexture.destroy(
+        vulkan.device
+    );
 
     ui.cleanup();
 
-    pipeline.cleanup(vulkan);
+    pipeline.cleanup(
+        vulkan
+    );
 
     vulkan.cleanup();
 
@@ -432,10 +695,9 @@ void Application::framebufferResizeCallback(
             glfwGetWindowUserPointer(window)
         );
 
-    if (application) {
+    if (application)
         application->vulkan.framebufferResized =
             true;
-    }
 }
 
 void Application::mouseButtonCallback(
@@ -491,8 +753,7 @@ void Application::cursorPositionCallback(
         );
 
     if (!application ||
-        !application->rightMouseDown ||
-        application->ui.wantsMouse()) {
+        !application->rightMouseDown) {
 
         return;
     }

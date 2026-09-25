@@ -4,8 +4,12 @@
 #include "Camera.h"
 #include "Pipeline.h"
 #include "UI.h"
+#include "Mesh.h"
+#include "Texture.h"
 
 #include <GLFW/glfw3.h>
+
+#include <vector>
 
 class Application {
 public:
@@ -14,6 +18,7 @@ public:
 private:
     void initWindow();
     void initVulkan();
+    void initTestCube();
     void mainLoop();
     void cleanup();
 
@@ -46,13 +51,15 @@ private:
     Pipeline pipeline;
     UI ui;
 
+    GPUMesh cubeMesh;
+    Texture cubeTexture;
+    VkDescriptorSet cubeTextureDescriptorSet = VK_NULL_HANDLE;
+
     bool rightMouseDown = false;
     bool firstMouse = true;
 
     double lastMouseX = 0.0;
     double lastMouseY = 0.0;
-
-    float lastFrameTime = 0.0f;
 
     size_t currentFrame = 0;
 };
