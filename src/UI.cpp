@@ -26,7 +26,7 @@ void UI::init(
         );
     }
 
-    // ImGui needs its own descriptor pool.
+    // ImGui gets its own descriptor pool.
     std::array<VkDescriptorPoolSize, 11> poolSizes = {{
         { VK_DESCRIPTOR_TYPE_SAMPLER,                1000 },
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
@@ -48,9 +48,8 @@ void UI::init(
     poolInfo.flags =
         VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
-    poolInfo.maxSets = 1000 * static_cast<uint32_t>(
-        poolSizes.size()
-    );
+    poolInfo.maxSets =
+        1000 * static_cast<uint32_t>(poolSizes.size());
 
     poolInfo.poolSizeCount =
         static_cast<uint32_t>(poolSizes.size());
@@ -63,6 +62,7 @@ void UI::init(
             &poolInfo,
             nullptr,
             &descriptorPool) != VK_SUCCESS) {
+
         throw std::runtime_error(
             "failed to create ImGui descriptor pool"
         );
@@ -88,13 +88,10 @@ void UI::init(
     initInfo.ImageCount =
         static_cast<uint32_t>(base.swapchainImages.size());
 
-    initInfo.PipelineInfoMain.RenderPass =
-        base.renderPass;
-
-    initInfo.PipelineInfoMain.Subpass = 0;
-
-    initInfo.PipelineInfoMain.MSAASamples =
-        VK_SAMPLE_COUNT_1_BIT;
+    // ImGui 1.91.1 uses these directly.
+    initInfo.RenderPass = base.renderPass;
+    initInfo.Subpass = 0;
+    initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
     if (!ImGui_ImplVulkan_Init(&initInfo)) {
         vkDestroyDescriptorPool(
@@ -110,15 +107,15 @@ void UI::init(
         );
     }
 
-    // Upload ImGui font atlas to the GPU.
-    VkCommandBuffer commandBuffer =
-        base.beginSingleTimeCommands();
-
-    ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
-
-    base.endSingleTimeCommands(commandBuffer);
-
-    ImGui_ImplVulkan_DestroyFontUploadObjects();
+    // Upload the font atlas.
+    //
+    // In this ImGui version CreateFontsTexture() submits its own
+    // upload work through the backend.
+    if (!ImGui_ImplVulkan_CreateFontsTexture()) {
+        throw std::runtime_error(
+            "failed to create ImGui font texture"
+        );
+    }
 
     initialized = true;
 }

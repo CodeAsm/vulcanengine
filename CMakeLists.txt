@@ -51,6 +51,7 @@ target_link_libraries(imgui PUBLIC glfw Vulkan::Vulkan)
 FetchContent_Declare(tinyobjloader
   GIT_REPOSITORY https://github.com/tinyobjloader/tinyobjloader.git
   GIT_TAG        release)
+
 FetchContent_MakeAvailable(tinyobjloader)
  
 # ---- stb (header-only, images) ----
@@ -90,6 +91,7 @@ target_link_libraries(model_viewer PRIVATE
   glfw
   glm::glm
   imgui
+  tinyobjloader
 )
  
 if(assimp_FOUND)
@@ -98,7 +100,6 @@ if(assimp_FOUND)
 endif()
  
 target_compile_definitions(model_viewer PRIVATE
-  GLFW_INCLUDE_VULKAN
   $<$<CONFIG:Debug>:ENABLE_VALIDATION_LAYERS>
 )
  
