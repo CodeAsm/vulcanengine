@@ -32,6 +32,13 @@ void Camera::processKeyboard(CameraMove dir, float dt) {
  
 void Camera::processMouseDelta(float dx, float dy) {
     yaw += dx * mouseSensitivity;
+	
+	if (yaw > 180.0f)
+    	yaw -= 360.0f;
+
+	if (yaw < -180.0f)
+    	yaw += 360.0f;
+
     pitch -= dy * mouseSensitivity;
     pitch = std::clamp(pitch, -89.0f, 89.0f);
 }
