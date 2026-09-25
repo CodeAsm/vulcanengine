@@ -2,6 +2,8 @@
 
 #include "VulkanBase.h"
 #include "Camera.h"
+#include "Pipeline.h"
+#include "UI.h"
 
 #include <GLFW/glfw3.h>
 
@@ -41,11 +43,16 @@ private:
 
     VulkanBase vulkan;
     Camera camera;
+    Pipeline pipeline;
+    UI ui;
 
     bool rightMouseDown = false;
     bool firstMouse = true;
+
     double lastMouseX = 0.0;
     double lastMouseY = 0.0;
 
     float lastFrameTime = 0.0f;
+
+    size_t currentFrame = 0;
 };

@@ -1,11 +1,6 @@
 #include "Application.h"
 
-#include "Pipeline.h"
-#include "UI.h"
-
 #include <imgui.h>
-
-#include <glm/glm.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -18,33 +13,21 @@ float currentTimeSeconds()
     using clock = std::chrono::steady_clock;
 
     static const auto start = clock::now();
-
     const auto now = clock::now();
 
-    return std::chrono::duration<float>(
-        now - start
-    ).count();
+    return std::chrono::duration<float>(now - start).count();
 }
 
-} // namespace
+}
 
 void Application::initWindow()
 {
     if (!glfwInit()) {
-        throw std::runtime_error(
-            "failed to initialize GLFW"
-        );
+        throw std::runtime_error("failed to initialize GLFW");
     }
 
-    glfwWindowHint(
-        GLFW_CLIENT_API,
-        GLFW_NO_API
-    );
-
-    glfwWindowHint(
-        GLFW_RESIZABLE,
-        GLFW_TRUE
-    );
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     window = glfwCreateWindow(
         1280,
@@ -56,16 +39,10 @@ void Application::initWindow()
 
     if (!window) {
         glfwTerminate();
-
-        throw std::runtime_error(
-            "failed to create GLFW window"
-        );
+        throw std::runtime_error("failed to create GLFW window");
     }
 
-    glfwSetWindowUserPointer(
-        window,
-        this
-    );
+    glfwSetWindowUserPointer(window, this);
 
     glfwSetFramebufferSizeCallback(
         window,
@@ -86,65 +63,60 @@ void Application::initWindow()
 void Application::initVulkan()
 {
     vulkan.init(window);
+
+    pipeline.init(vulkan);
+
+    ui.init(window, vulkan);
 }
 
 void Application::processInput(float deltaTime)
 {
-    if (!window) {
+    if (!window)
         return;
-    }
 
-    // Don't let camera controls interfere with ImGui text fields,
-    // menus, etc.
+    // Camera keyboard controls.
     //
-    // UI is queried here only when it exists later in the render loop.
-    //
-    // Keyboard movement:
-    //   W / S = forward / backward
-    //   A / D = left / right
-    //   Space = up
-    //   Ctrl  = down
+    // W / S = forward / backward
+    // A / D = left / right
+    // Space = up
+    // Ctrl  = down
 
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        camera.processKeyboard(
-            CameraMove::Forward,
-            deltaTime
-        );
-    }
+    if (!ui.wantsKeyboard()) {
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            camera.processKeyboard(
+                CameraMove::Forward,
+                deltaTime
+            );
 
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        camera.processKeyboard(
-            CameraMove::Backward,
-            deltaTime
-        );
-    }
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            camera.processKeyboard(
+                CameraMove::Backward,
+                deltaTime
+            );
 
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-        camera.processKeyboard(
-            CameraMove::Left,
-            deltaTime
-        );
-    }
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            camera.processKeyboard(
+                CameraMove::Left,
+                deltaTime
+            );
 
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        camera.processKeyboard(
-            CameraMove::Right,
-            deltaTime
-        );
-    }
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            camera.processKeyboard(
+                CameraMove::Right,
+                deltaTime
+            );
 
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-        camera.processKeyboard(
-            CameraMove::Up,
-            deltaTime
-        );
-    }
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+            camera.processKeyboard(
+                CameraMove::Up,
+                deltaTime
+            );
 
-    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
-        camera.processKeyboard(
-            CameraMove::Down,
-            deltaTime
-        );
+        if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+            camera.processKeyboard(
+                CameraMove::Down,
+                deltaTime
+            );
     }
 }
 
@@ -160,13 +132,39 @@ void Application::mainLoop()
         float deltaTime = now - previousTime;
         previousTime = now;
 
-        // Avoid huge camera jumps after a breakpoint/window stall.
-        if (deltaTime > 0.1f) {
+        if (deltaTime > 0.1f)
             deltaTime = 0.1f;
-        }
+
+        ui.newFrame();
+
+        // Temporary ImGui test window.
+        ImGui::Begin("Vulkan Model Viewer");
+
+        ImGui::Text("Vulkan renderer running.");
+        ImGui::Text(
+            "GPU: %s",
+            "Intel Vulkan device"
+        );
+
+        ImGui::Separator();
+
+        ImGui::Text("Camera");
+        ImGui::Text(
+            "Position: %.2f, %.2f, %.2f",
+            camera.position.x,
+            camera.position.y,
+            camera.position.z
+        );
+
+        ImGui::Text(
+            "Yaw: %.2f  Pitch: %.2f",
+            camera.yaw,
+            camera.pitch
+        );
+
+        ImGui::End();
 
         processInput(deltaTime);
-
         drawFrame();
     }
 
@@ -175,8 +173,6 @@ void Application::mainLoop()
 
 void Application::drawFrame()
 {
-    static size_t currentFrame = 0;
-
     VkFence inFlightFence =
         vulkan.inFlightFences[currentFrame];
 
@@ -216,8 +212,6 @@ void Application::drawFrame()
         );
     }
 
-    // If this swapchain image is already being rendered,
-    // wait for the fence associated with that previous frame.
     if (vulkan.imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
         vkWaitForFences(
             vulkan.device,
@@ -228,7 +222,6 @@ void Application::drawFrame()
         );
     }
 
-    // Associate this swapchain image with our current frame.
     vulkan.imagesInFlight[imageIndex] =
         inFlightFence;
 
@@ -247,7 +240,6 @@ void Application::drawFrame()
     );
 
     VkCommandBufferBeginInfo beginInfo{};
-
     beginInfo.sType =
         VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
@@ -281,9 +273,12 @@ void Application::drawFrame()
 
     VkClearValue clearValues[2]{};
 
-    clearValues[0].color = {
-        {0.025f, 0.025f, 0.035f, 1.0f}
-    };
+    clearValues[0].color = {{
+        0.025f,
+        0.025f,
+        0.035f,
+        1.0f
+    }};
 
     clearValues[1].depthStencil = {
         1.0f,
@@ -291,8 +286,7 @@ void Application::drawFrame()
     };
 
     renderPassInfo.clearValueCount = 2;
-    renderPassInfo.pClearValues =
-        clearValues;
+    renderPassInfo.pClearValues = clearValues;
 
     vkCmdBeginRenderPass(
         commandBuffer,
@@ -300,8 +294,14 @@ void Application::drawFrame()
         VK_SUBPASS_CONTENTS_INLINE
     );
 
-    // No geometry yet.
-    // The render pass currently just clears the framebuffer.
+    /*
+     * Geometry rendering will go here.
+     *
+     * For now the render pass only clears the
+     * framebuffer.
+     */
+
+    ui.render(commandBuffer);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -329,7 +329,6 @@ void Application::drawFrame()
         VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
     submitInfo.waitSemaphoreCount = 1;
-
     submitInfo.pWaitSemaphores =
         waitSemaphores;
 
@@ -337,12 +336,10 @@ void Application::drawFrame()
         waitStages;
 
     submitInfo.commandBufferCount = 1;
-
     submitInfo.pCommandBuffers =
         &commandBuffer;
 
     submitInfo.signalSemaphoreCount = 1;
-
     submitInfo.pSignalSemaphores =
         signalSemaphores;
 
@@ -367,12 +364,10 @@ void Application::drawFrame()
         VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
     presentInfo.waitSemaphoreCount = 1;
-
     presentInfo.pWaitSemaphores =
         signalSemaphores;
 
     presentInfo.swapchainCount = 1;
-
     presentInfo.pSwapchains =
         swapchains;
 
@@ -389,6 +384,7 @@ void Application::drawFrame()
         vulkan.framebufferResized) {
 
         vulkan.framebufferResized = false;
+
         vulkan.recreateSwapchain();
     }
     else if (result != VK_SUCCESS) {
@@ -408,6 +404,10 @@ void Application::cleanup()
     if (vulkan.device != VK_NULL_HANDLE) {
         vkDeviceWaitIdle(vulkan.device);
     }
+
+    ui.cleanup();
+
+    pipeline.cleanup(vulkan);
 
     vulkan.cleanup();
 
@@ -433,7 +433,8 @@ void Application::framebufferResizeCallback(
         );
 
     if (application) {
-        application->vulkan.framebufferResized = true;
+        application->vulkan.framebufferResized =
+            true;
     }
 }
 
@@ -450,12 +451,13 @@ void Application::mouseButtonCallback(
             glfwGetWindowUserPointer(window)
         );
 
-    if (!application) {
+    if (!application)
         return;
-    }
 
     if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+
         if (action == GLFW_PRESS) {
+
             application->rightMouseDown = true;
             application->firstMouse = true;
 
@@ -466,6 +468,7 @@ void Application::mouseButtonCallback(
             );
         }
         else if (action == GLFW_RELEASE) {
+
             application->rightMouseDown = false;
 
             glfwSetInputMode(
@@ -488,14 +491,19 @@ void Application::cursorPositionCallback(
         );
 
     if (!application ||
-        !application->rightMouseDown) {
+        !application->rightMouseDown ||
+        application->ui.wantsMouse()) {
+
         return;
     }
 
     if (application->firstMouse) {
+
         application->lastMouseX = xpos;
         application->lastMouseY = ypos;
+
         application->firstMouse = false;
+
         return;
     }
 
@@ -527,6 +535,7 @@ void Application::run()
         cleanup();
     }
     catch (const std::exception& e) {
+
         std::cerr
             << "Fatal error: "
             << e.what()
