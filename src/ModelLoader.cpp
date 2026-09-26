@@ -5,8 +5,90 @@
 #include <filesystem>
 #include <stdexcept>
 #include <unordered_map>
+#include <algorithm>
+#include <cctype>
 
 namespace fs = std::filesystem;
+
+namespace {
+
+std::string toLower(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(),
+                    [](unsigned char c) { return (char)std::tolower(c); });
+    return s;
+}
+
+// Materials exported from tools like Blender/Sketchfab often reference a
+// texture with a path that doesn't quite match what's on disk: backslashes
+// from a Windows export, a different subfolder ("textures/", "Textures/"),
+// or just the bare filename while the actual file sits a level away. Rather
+// than fail silently (and draw a magenta "missing texture" swatch), search
+// a few likely spots before giving up.
+//
+// Returns an absolute path to a file that exists, or an empty string if
+// nothing could be found.
+std::string resolveTexturePath(const fs::path& modelDirectory, std::string rawPath) {
+    if (rawPath.empty()) {
+        return {};
+    }
+
+    std::replace(rawPath.begin(), rawPath.end(), '\\', '/');
+    const fs::path raw(rawPath);
+    const fs::path filenameOnly = raw.filename();
+
+    std::error_code ec;
+
+    // 1) Exact path as given, relative to the model's own folder.
+    fs::path candidate = raw.is_absolute() ? raw : (modelDirectory / raw);
+    if (fs::exists(candidate, ec)) {
+        return fs::weakly_canonical(candidate, ec).string();
+    }
+
+    // 2) Just the filename, directly in the model's folder.
+    candidate = modelDirectory / filenameOnly;
+    if (fs::exists(candidate, ec)) {
+        return fs::weakly_canonical(candidate, ec).string();
+    }
+
+    // 3) Common "textures" sibling subfolder (any capitalization).
+    for (const char* sub : {"textures", "Textures", "TEXTURES", "maps", "Maps"}) {
+        candidate = modelDirectory / sub / filenameOnly;
+        if (fs::exists(candidate, ec)) {
+            return fs::weakly_canonical(candidate, ec).string();
+        }
+    }
+
+    // 4) Shallow recursive search (2 levels deep) under the model's folder,
+    // matching the filename case-insensitively. Handles zips that unpack
+    // into a nested folder structure.
+    const std::string targetLower = toLower(filenameOnly.string());
+    if (fs::exists(modelDirectory, ec) && fs::is_directory(modelDirectory, ec)) {
+        for (fs::recursive_directory_iterator it(
+                 modelDirectory,
+                 fs::directory_options::skip_permission_denied,
+                 ec),
+             end;
+             it != end && !ec;
+             it.increment(ec)) {
+
+            if (it.depth() > 2) {
+                it.disable_recursion_pending();
+                continue;
+            }
+
+            std::error_code fileEc;
+            if (it->is_regular_file(fileEc) &&
+                toLower(it->path().filename().string()) == targetLower) {
+                return fs::weakly_canonical(it->path(), ec).string();
+            }
+        }
+    }
+
+    // Not found anywhere we looked; caller falls back to a placeholder color.
+    return {};
+}
+
+} // namespace
 
 ModelData ModelLoader::load(const std::string& path)
 {
@@ -95,14 +177,8 @@ ModelData ModelLoader::loadOBJ(const std::string& path)
         }
 
         if (!sourceMaterial.diffuse_texname.empty()) {
-            fs::path texturePath(sourceMaterial.diffuse_texname);
-
-            if (texturePath.is_relative()) {
-                texturePath = modelDirectory / texturePath;
-            }
-
             material.diffuseTexturePath =
-                fs::weakly_canonical(texturePath).string();
+                resolveTexturePath(modelDirectory, sourceMaterial.diffuse_texname);
         }
 
         model.materials.push_back(std::move(material));
@@ -404,16 +480,14 @@ ModelData ModelLoader::loadAssimp(const std::string& path)
                 0,
                 &texturePath) == AI_SUCCESS) {
 
-            fs::path texture = texturePath.C_Str();
+            std::string textureName = texturePath.C_Str();
 
-            // Embedded textures are not handled yet.
-            if (!texture.empty() && texture.string()[0] != '*') {
-                if (texture.is_relative()) {
-                    texture = modelDirectory / texture;
-                }
-
+            // Embedded textures (name starts with '*', an index into the
+            // FBX's own texture table) aren't extracted yet -- fall back to
+            // the material's flat color for those instead of guessing.
+            if (!textureName.empty() && textureName[0] != '*') {
                 material.diffuseTexturePath =
-                    fs::weakly_canonical(texture).string();
+                    resolveTexturePath(modelDirectory, textureName);
             }
         }
 
