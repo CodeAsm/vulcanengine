@@ -214,7 +214,16 @@ void UI::drawMainMenuBar()
 
 void UI::drawFileBrowser()
 {
-    ImGui::SetNextWindowSize(ImVec2(520, 420), ImGuiCond_FirstUseEver);
+    bool navigate = false;
+    fs::path navigateTarget;
+
+    bool loadRequested = false;
+    fs::path fileToLoad;
+
+    ImGui::SetNextWindowSize(
+        ImVec2(520, 420),
+        ImGuiCond_FirstUseEver
+    );
 
     if (!ImGui::Begin("Open Model", &showFileBrowser)) {
         ImGui::End();
@@ -223,18 +232,22 @@ void UI::drawFileBrowser()
 
     ImGui::TextUnformatted("Folder:");
     ImGui::SameLine();
-    ImGui::TextDisabled("%s", currentDirectory.string().c_str());
+    ImGui::TextDisabled(
+        "%s",
+        currentDirectory.string().c_str()
+    );
 
     if (ImGui::Button("Up one level")) {
         fs::path parent = currentDirectory.parent_path();
+
         if (!parent.empty()) {
-            currentDirectory = parent;
-            selectedFile.clear();
-            refreshDirectoryListing();
+            navigate = true;
+            navigateTarget = parent;
         }
     }
 
     ImGui::SameLine();
+
     if (ImGui::Button("Refresh")) {
         refreshDirectoryListing();
     }
@@ -243,82 +256,173 @@ void UI::drawFileBrowser()
 
     // Manual path entry, for typing/pasting a folder or file path directly.
     static char pathBuf[1024];
-    std::snprintf(pathBuf, sizeof(pathBuf), "%s", manualPathBuffer.c_str());
+
+    std::snprintf(
+        pathBuf,
+        sizeof(pathBuf),
+        "%s",
+        manualPathBuffer.c_str()
+    );
+
     ImGui::SetNextItemWidth(-90.0f);
-    if (ImGui::InputTextWithHint("##manualpath", "Paste a folder or .obj/.fbx path and press Go",
-                                  pathBuf, sizeof(pathBuf))) {
+
+    if (ImGui::InputTextWithHint(
+            "##manualpath",
+            "Paste a folder or .obj/.fbx path and press Go",
+            pathBuf,
+            sizeof(pathBuf))) {
+
         manualPathBuffer = pathBuf;
     }
+
     ImGui::SameLine();
+
     if (ImGui::Button("Go")) {
         fs::path typed(manualPathBuffer);
+
         std::error_code ec;
+
         if (fs::is_directory(typed, ec)) {
-            currentDirectory = typed;
-            selectedFile.clear();
-            refreshDirectoryListing();
-        } else if (fs::is_regular_file(typed, ec) && isModelFile(typed)) {
+            navigate = true;
+            navigateTarget = typed;
+        }
+        else if (
+            fs::is_regular_file(typed, ec) &&
+            isModelFile(typed)
+        ) {
             selectedFile = typed;
-            currentDirectory = typed.parent_path();
-            refreshDirectoryListing();
-        } else {
-            fileBrowserError = "Not a folder or a .obj/.fbx file: " + manualPathBuffer;
+            navigate = true;
+            navigateTarget = typed.parent_path();
+        }
+        else {
+            fileBrowserError =
+                "Not a folder or a .obj/.fbx file: " +
+                manualPathBuffer;
         }
     }
 
     if (!fileBrowserError.empty()) {
-        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", fileBrowserError.c_str());
+        ImGui::TextColored(
+            ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+            "%s",
+            fileBrowserError.c_str()
+        );
     }
 
     ImGui::Separator();
 
-    ImGui::BeginChild("##filelist", ImVec2(0, -32), true);
+    ImGui::BeginChild(
+        "##filelist",
+        ImVec2(0, -32),
+        true
+    );
 
+    // Directories
     for (const auto& dir : directoryEntries) {
-        std::string label = "[dir]  " + dir.filename().string();
+        std::string label =
+            "[dir]  " + dir.filename().string();
+
         if (ImGui::Selectable(label.c_str())) {
-            currentDirectory = dir;
-            selectedFile.clear();
-            refreshDirectoryListing();
+            navigate = true;
+            navigateTarget = dir;
         }
     }
 
+    // Files
     for (const auto& file : fileEntries) {
-        bool isSelected = (file == selectedFile);
-        std::string label = file.filename().string();
-        if (ImGui::Selectable(label.c_str(), isSelected)) {
+        bool isSelected =
+            (file == selectedFile);
+
+        std::string label =
+            file.filename().string();
+
+        if (ImGui::Selectable(
+                label.c_str(),
+                isSelected)) {
+
             selectedFile = file;
         }
-        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+
+        if (
+            ImGui::IsItemHovered() &&
+            ImGui::IsMouseDoubleClicked(
+                ImGuiMouseButton_Left
+            )
+        ) {
             selectedFile = file;
-            if (onModelSelected) onModelSelected(selectedFile.string());
-            showFileBrowser = false;
+
+            loadRequested = true;
+            fileToLoad = file;
         }
     }
 
-    if (directoryEntries.empty() && fileEntries.empty()) {
-        ImGui::TextDisabled("(empty, or no .obj/.fbx files here)");
+    if (
+        directoryEntries.empty() &&
+        fileEntries.empty()
+    ) {
+        ImGui::TextDisabled(
+            "(empty, or no .obj/.fbx files here)"
+        );
     }
 
     ImGui::EndChild();
 
-    ImGui::TextDisabled("Tip: textures are found automatically next to the model, or in a");
-    ImGui::TextDisabled("'textures' subfolder -- that's usually how Sketchfab exports look.");
+    ImGui::TextDisabled(
+        "Tip: textures are found automatically next to the model, "
+        "or in a"
+    );
+
+    ImGui::TextDisabled(
+        "'textures' subfolder -- that's usually how Sketchfab "
+        "exports look."
+    );
 
     bool canLoad = !selectedFile.empty();
-    if (!canLoad) ImGui::BeginDisabled();
-    if (ImGui::Button("Load", ImVec2(120, 0))) {
-        if (onModelSelected) onModelSelected(selectedFile.string());
-        showFileBrowser = false;
+
+    if (!canLoad) {
+        ImGui::BeginDisabled();
     }
-    if (!canLoad) ImGui::EndDisabled();
+
+    if (ImGui::Button(
+            "Load",
+            ImVec2(120, 0)
+        )) {
+        loadRequested = true;
+        fileToLoad = selectedFile;
+    }
+
+    if (!canLoad) {
+        ImGui::EndDisabled();
+    }
 
     ImGui::SameLine();
-    if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+
+    if (ImGui::Button(
+            "Cancel",
+            ImVec2(120, 0)
+        )) {
         showFileBrowser = false;
     }
 
     ImGui::End();
+
+    // Perform directory navigation only after all
+    // directoryEntries/fileEntries loops are finished.
+    if (navigate) {
+        currentDirectory = navigateTarget;
+        selectedFile.clear();
+        refreshDirectoryListing();
+    }
+
+    // Perform model loading only after the file loop
+    // has finished.
+    if (loadRequested) {
+        if (onModelSelected) {
+            onModelSelected(fileToLoad.string());
+        }
+
+        showFileBrowser = false;
+    }
 }
 
 void UI::drawObjectPanel(UIState& state)
