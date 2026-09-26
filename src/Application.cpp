@@ -287,13 +287,13 @@ void Application::processInput(float deltaTime)
 
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
             camera.processKeyboard(
-                CameraMove::Up,
+                CameraMove::Down,
                 deltaTime
             );
 
         if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
             camera.processKeyboard(
-                CameraMove::Down,
+                CameraMove::Up,
                 deltaTime
             );
     }
@@ -716,7 +716,7 @@ void Application::mouseButtonCallback(
     if (!application)
         return;
 
-    if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
 
         if (action == GLFW_PRESS) {
 
