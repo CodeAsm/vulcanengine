@@ -61,6 +61,7 @@ public:
     // Invoked with the full path of the file the user picked in the
     // browser once they press "Load". Set this once during setup.
     void setModelSelectedCallback(std::function<void(const std::string&)> callback);
+	std::function<void()> onExit;
 
 private:
     void drawMainMenuBar();

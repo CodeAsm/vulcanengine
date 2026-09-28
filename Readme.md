@@ -6,7 +6,7 @@
 
 for fbx support, install assimp also.
 ```sh
-sudo pacman -S vulkan-heiwc  aders assimp
+sudo pacman -S vulkan-headers assimp
 
 mkdir build
 cd build

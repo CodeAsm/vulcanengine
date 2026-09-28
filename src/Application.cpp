@@ -245,6 +245,10 @@ void Application::initVulkan()
     );
 
     initTestCube();
+
+	ui.onExit = [this]() {
+   		 glfwSetWindowShouldClose(window, GLFW_TRUE);
+		};
 }
 
 void Application::loadModel(const std::string& path)

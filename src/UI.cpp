@@ -207,10 +207,9 @@ void UI::drawMainMenuBar()
                 refreshDirectoryListing();
             }
 			if (ImGui::MenuItem("Exit")) {
-				glfwSetWindowShouldClose(
-					glfwGetCurrentContext(),
-					GLFW_TRUE
-				);
+			  	if (onExit) {
+					onExit();
+				}
 			}
             ImGui::EndMenu();
         }
