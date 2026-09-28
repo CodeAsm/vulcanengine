@@ -206,6 +206,12 @@ void UI::drawMainMenuBar()
                 selectedFile.clear();
                 refreshDirectoryListing();
             }
+			if (ImGui::MenuItem("Exit")) {
+				glfwSetWindowShouldClose(
+					glfwGetCurrentContext(),
+					GLFW_TRUE
+				);
+			}
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
